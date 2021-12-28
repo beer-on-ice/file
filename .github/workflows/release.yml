@@ -1,32 +1,43 @@
-name: Release
+name: '发布 CDN Release'
+
 on:
+  pull_request:
+    branches:
+      - master
   push:
     branches:
       - master
+      - next
+      - next-major
+      - alpha
+      - beta
+
 jobs:
   release:
-    name: Release
+    name: release
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - name: Setup Node.js environment
-        uses: actions/setup-node@v2
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Semantic Release
+        uses: cycjimmy/semantic-release-action@v2
+        id: semantic
         with:
-          node-version: "lts/*"
-          cache: "yarn"
-      - name: Cache multiple paths
-        uses: actions/cache@v2
-        with:
-          path: |
-            ~/.npm
-            ~/cache
-            !~/cache/exclude
-            **/node_modules
-          key: npm-${{ runner.os }}-${{ hashFiles('package.json') }}
-      - run: yarn
-      - run: yarn run lint
-      - run: yarn run build
-      - env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          semantic_version: 15
+          branches: |
+            [
+              'master'
+            ]
+          branch: master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: yarn run release
+
+      - name: Outputs
+        if: steps.semantic.outputs.new_release_published == 'true'
+        run: |
+          echo ${{ steps.semantic.outputs.new_release_version }}
+          echo ${{ steps.semantic.outputs.new_release_major_version }}
+          echo ${{ steps.semantic.outputs.new_release_minor_version }}
+          echo ${{ steps.semantic.outputs.new_release_patch_version }}
