@@ -55,4 +55,3 @@ jobs:
           prerelease: false # 是否为预发布版本
           body: |
             请点击查看 [更新日志](https://bhabgs.github.io/vite-vui-docs/components/log.html).
-     
