@@ -1,57 +1,78 @@
-# name属性用来指定这个工作流的名字
-name: npm to deploy-vui and create release
+name: Node.js Package
 
 on:
-  # 当对分支deploy-vui进行push操作的时候,触发该条工作流
   push:
-    branches: [ deploy-vui ]
+    branches:
+      - master
+
 jobs:
-  build-publish-release
-  	runs-on: ubuntu-latest
-    
+  publish-npm:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [12.x]
     steps:
-      - uses: actions/checkout@v2 # 先检出代码
-        
-      - name: 初始化node环境
-        uses: actions/setup-node@v1
+      # check it to your workflow can access it
+      # from: https://github.com/actions/checkout
+      - name: 1. 检查master分支
+        uses: actions/checkout@master
+
+      # from: https://github.com/actions/setup-node
+      - name: 2. 设置Node.js
+        uses: actions/setup-node@master
         with:
           node-version: ${{ matrix.node-version }}
-          registry-url: https://registry.npmjs.org/ # 如果不配置将影响publish
-          
-      - name: 安装yarn # 因为我的代码采用了monorepo的 workspace形式 所以必须使用yarn
-        run: npm i -g yarn
-       
-      - name: 安装依赖 # 使用yarn 安装依赖
-        run: yarn
-      
-       - name: 编译部署ui
-        working-directory: 'package/vitevui' # 因为代码采用的monorepo 所以需要进入包的目录来运行
-        run: yarn build
-        
-      - name: publish # 向npm publish 代码 请遵循npm规范.
-        working-directory: 'package/vitevui'
-        env:
-          NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}} # 该token是 npm的token 获取npm token请查看 步骤2 的创建 npm token 和 将npm token 放入github的 secrets下
-        run: npm publish
-      # 到这如果全部成功，那么我们就成功的将代码发布到了npm
-      
-      # 下面主要是创建 github 的release
-      # 使用 tyankatsu0105/read-package-version-actions@v1 工具来读取对应的package.json 数据
-      - name: Read package.json
-        uses: tyankatsu0105/read-package-version-actions@v1
+
+      - name: 3. 缓存
+        uses: actions/cache@v2
+        id: cache-dependencies
         with:
-          path: './package/vitevui'
-        id: package-version
-        
-        # 关于创建 release 的更多参数，可以查看 actions/create-release@v1
-      - name: Create Release for Tag
-        id: release_tag
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.PERSONAL_TOKEN }} # 这块需要用到 github的token，因为需要对分之进行代码推送
+          path: node_modules
+          key: ${{runner.OS}}-${{hashFiles('**/yarn.lock')}}
+
+      - name: 4. 安装插件
+        if: steps.cache-dependencies.outputs.cache-hit != 'true'
+        run: |
+          export TZ='Asia/Shanghai'
+          yarn install
+
+      - name: 5. 生成文件
+        run: |
+          export TZ='Asia/Shanghai'
+          node index.js
+
+      - name: 6. 读取当前版本号
+        id: version
+        uses: ashley-taylor/read-json-property-action@v1.0
         with:
-          tag_name: vitevui-v${{ steps.package-version.outputs.version }}
-          release_name: Release vitevui-v${{ steps.package-version.outputs.version }}
-          prerelease: false # 是否为预发布版本
-          body: |
-            请点击查看 [更新日志](https://bhabgs.github.io/vite-vui-docs/components/log.html).
+          path: ./package.json
+          property: version
+
+      - name: 7. 读取描述文件
+        id: description
+        uses: juliangruber/read-file-action@v1
+        with:
+          path: ./description.txt
+
+      - name: 8. 发布NPM包
+        run: |
+          npm config set //registry.npmjs.org/:_authToken=$NPM_TOKEN
+          npm publish
+        env:
+          NPM_TOKEN: ${{secrets.NPM_TOKEN}}
+
+      - name: 9. 创建GitHub Release
+        id: create_release
+        uses: actions/create-release@latest
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{steps.version.outputs.value}}
+          release_name: v${{steps.version.outputs.value}}
+          body: ${{steps.description.outputs.content}}
+          draft: false
+          prerelease: false
+
+      - name: 10. 刷新缓存
+        run: |
+          curl https://purge.jsdelivr.net/npm/iemotion-pic@latest/dist/name.json
