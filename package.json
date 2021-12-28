@@ -16,6 +16,7 @@
   ],
   "dependencies": {
     "@actions/core": "^1.2.6",
+    "cz-conventional-changelog": "^3.3.0",
     "@cycjimmy/awesome-js-funcs": "^2.4.0"
   }
 }
