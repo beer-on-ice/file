@@ -1,43 +1,58 @@
-name: '发布 CDN Release'
+# name属性用来指定这个工作流的名字
+name: npm to deploy-vui and create release
 
 on:
-  pull_request:
-    branches:
-      - master
+  # 当对分支deploy-vui进行push操作的时候,触发该条工作流
   push:
-    branches:
-      - master
-      - next
-      - next-major
-      - alpha
-      - beta
-
+    branches: [ deploy-vui ]
 jobs:
-  release:
-    name: release
-    runs-on: ubuntu-latest
+  build-publish-release
+  	runs-on: ubuntu-latest
+    
     steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-
-      - name: Semantic Release
-        uses: cycjimmy/semantic-release-action@v2
-        id: semantic
+      - uses: actions/checkout@v2 # 先检出代码
+        
+      - name: 初始化node环境
+        uses: actions/setup-node@v1
         with:
-          semantic_version: 15
-          branches: |
-            [
-              'master'
-            ]
-          branch: master
+          node-version: ${{ matrix.node-version }}
+          registry-url: https://registry.npmjs.org/ # 如果不配置将影响publish
+          
+      - name: 安装yarn # 因为我的代码采用了monorepo的 workspace形式 所以必须使用yarn
+        run: npm i -g yarn
+       
+      - name: 安装依赖 # 使用yarn 安装依赖
+        run: yarn
+      
+       - name: 编译部署ui
+        working-directory: 'package/vitevui' # 因为代码采用的monorepo 所以需要进入包的目录来运行
+        run: yarn build
+        
+      - name: publish # 向npm publish 代码 请遵循npm规范.
+        working-directory: 'package/vitevui'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Outputs
-        if: steps.semantic.outputs.new_release_published == 'true'
-        run: |
-          echo ${{ steps.semantic.outputs.new_release_version }}
-          echo ${{ steps.semantic.outputs.new_release_major_version }}
-          echo ${{ steps.semantic.outputs.new_release_minor_version }}
-          echo ${{ steps.semantic.outputs.new_release_patch_version }}
+          NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}} # 该token是 npm的token 获取npm token请查看 步骤2 的创建 npm token 和 将npm token 放入github的 secrets下
+        run: npm publish
+      # 到这如果全部成功，那么我们就成功的将代码发布到了npm
+      
+      # 下面主要是创建 github 的release
+      # 使用 tyankatsu0105/read-package-version-actions@v1 工具来读取对应的package.json 数据
+      - name: Read package.json
+        uses: tyankatsu0105/read-package-version-actions@v1
+        with:
+          path: './package/vitevui'
+        id: package-version
+        
+        # 关于创建 release 的更多参数，可以查看 actions/create-release@v1
+      - name: Create Release for Tag
+        id: release_tag
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.PERSONAL_TOKEN }} # 这块需要用到 github的token，因为需要对分之进行代码推送
+        with:
+          tag_name: vitevui-v${{ steps.package-version.outputs.version }}
+          release_name: Release vitevui-v${{ steps.package-version.outputs.version }}
+          prerelease: false # 是否为预发布版本
+          body: |
+            请点击查看 [更新日志](https://bhabgs.github.io/vite-vui-docs/components/log.html).
+     
