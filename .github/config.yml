@@ -1,0 +1,21 @@
+# Configuration for welcome - https://github.com/behaviorbot/welcome
+
+# Configuration for new-issue-welcome - https://github.com/behaviorbot/new-issue-welcome
+
+# Comment to be posted to on first time issues
+# newIssueWelcomeComment: >
+#   感谢您提交了 issue ，我们将在之后研究这个问题并及时反馈给您，请稍加等待
+
+# Configuration for new-pr-welcome - https://github.com/behaviorbot/new-pr-welcome
+
+# Comment to be posted to on PRs from first time contributors in your repository
+# newPRWelcomeComment: >
+#   感谢您提交这个 PR ，请检查 PR 是否通过了 lint 和 test，如果没有问题，我们将尽快审核这个 PR
+
+# Configuration for first-pr-merge - https://github.com/behaviorbot/first-pr-merge
+
+# Comment to be posted to on pull requests merged by a first time user
+# firstPRMergeComment: >
+#   感谢，您提交的 PR 被合并了
+
+# It is recommend to include as many gifs and emojis as possible
