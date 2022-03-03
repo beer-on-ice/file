@@ -1,26 +1,13 @@
-$str=file_get_contents('https://cn.bing.com/HPImageArchive.aspx?idx=0&n=1');
-
-if (preg_match("/(.+?)/ies", $str, $matches)) {
-$imgurl='https://cn.bing.com'.$matches[1];
-
-}
-
-if ($imgurl) {
-header('Content-Type: image/JPEG');
-
-@ob_end_clean();
-
-@readfile($imgurl);
-
-@flush();
-
-@ob_flush();
-
-exit();
-
-} else {
-exit('error');
-
-}
-
+<?php
+	$str = file_get_contents('https://cn.bing.com/HPImageArchive.aspx?format=js&idx=0&n=1');
+	$data = json_decode($str);
+	$imghost = 'https://cn.bing.com';
+	$imgpath = $data -> {'images'}[0] -> {'url'};
+	if ($imgpath) {
+		$imgurl = $imghost . $imgpath;
+		header('Location:' . $imgurl);
+		exit();
+	} else {
+		exit('error');
+	}
 ?>
